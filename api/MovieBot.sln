@@ -1,7 +1,7 @@
 
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieBot.Cli", "MovieBot.Cli\MovieBot.Cli.csproj", "{52579B48-10D1-4BE8-ABDA-3D6AABBCD41A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MovieBot.Worker", "MovieBot.Worker\MovieBot.Worker.csproj", "{0B8B6665-F999-4AE9-A9F3-D85BAFAF61C2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,9 +9,9 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{52579B48-10D1-4BE8-ABDA-3D6AABBCD41A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{52579B48-10D1-4BE8-ABDA-3D6AABBCD41A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{52579B48-10D1-4BE8-ABDA-3D6AABBCD41A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{52579B48-10D1-4BE8-ABDA-3D6AABBCD41A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0B8B6665-F999-4AE9-A9F3-D85BAFAF61C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0B8B6665-F999-4AE9-A9F3-D85BAFAF61C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0B8B6665-F999-4AE9-A9F3-D85BAFAF61C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0B8B6665-F999-4AE9-A9F3-D85BAFAF61C2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
