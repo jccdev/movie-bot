@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Discord;
+using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -99,16 +100,6 @@ namespace MovieBot.Worker
         private async Task Ready()
         {
             var botTestChannel = _client.GetChannel(BotTestChannel) as SocketTextChannel;
-
-            var cached = botTestChannel.GetCachedMessages();
-
-            if (cached.Any())
-            {
-                foreach(var msg in cached)
-                {
-                    await MessageReceived(msg);
-                }
-            }
         }
     }
 }
