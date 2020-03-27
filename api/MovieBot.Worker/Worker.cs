@@ -46,7 +46,7 @@ namespace MovieBot.Worker
 
         private Task Log(LogMessage msg)
         {
-            _logger.LogDebug(msg.ToString());
+            _logger.LogInformation(msg.ToString());
             return Task.CompletedTask;
         }
 
