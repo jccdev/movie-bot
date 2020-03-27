@@ -66,6 +66,7 @@ namespace MovieBot.Worker
                 builder.AppendLine();
                 builder.AppendLine("`!movie-bot ping`");
                 builder.AppendLine("`!movie-bot echo`");
+                builder.AppendLine("`!movie-bot popcorn`");
 
                 await message.Channel.SendMessageAsync(builder.ToString());
             }
@@ -85,6 +86,10 @@ namespace MovieBot.Worker
                 await message.Channel.SendMessageAsync("Reported to FBI!");
             }
 
+            else if(message.Content == "!movie-bot popcorn")
+            {
+                await message.Channel.SendMessageAsync(":popcorn::popcorn::popcorn::popcorn::popcorn:");
+            }
 
             else if (message.Content.StartsWith("!movie-bot"))
             {
