@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Discord;
@@ -67,6 +69,7 @@ namespace MovieBot.Worker
                 builder.AppendLine("`!movie-bot ping`");
                 builder.AppendLine("`!movie-bot echo`");
                 builder.AppendLine("`!movie-bot popcorn`");
+                builder.AppendLine("`!movie-bot ban @name1 @name2`");
 
                 await message.Channel.SendMessageAsync(builder.ToString());
             }
@@ -91,6 +94,29 @@ namespace MovieBot.Worker
                 await message.Channel.SendMessageAsync(":popcorn::popcorn::popcorn::popcorn::popcorn:");
             }
 
+            else if (message.Content.StartsWith("!movie-bot ban"))
+            {
+                if(message.MentionedUserIds.Any())
+                {
+
+                    var users = new List<IUser>();
+                    foreach (var uId in message.MentionedUserIds)
+                    {
+                        var user = await message.Channel.GetUserAsync(uId);
+                        users.Add(user);
+                    }
+
+                    var builder = new StringBuilder();
+
+                    builder.AppendLine(string.Join(" ", users.Select(u => u.Mention)));
+
+                    builder.AppendLine("> Well, there's this passage I got memorized, sorta fits the occasion. \"Ezekiel 25:17\". \"The path of the righteous man is beset on all sides by the iniquities of the selfish and the tyranny of evil men. Blessed is he who in the name of cherish and good will shepherds the weak through the valley of darkness for he is truly his keeper and the finder of lost children. And I will strike down upon thee with great vengeance and furious anger those who attempt to poison and destroy my brothers. And you will know my name is the Lord when I lay my vengeance upon thee.\" ");
+
+                    var imgPath = Path.Join(AppDomain.CurrentDomain.BaseDirectory, "Static Assets/pulpfiction_new.jpg");
+                    await message.Channel.SendFileAsync(imgPath, builder.ToString());
+                }
+            }
+
             else if (message.Content.StartsWith("!movie-bot"))
             {
                 var response = "I do not understand the command." + Environment.NewLine + ">>> " + message.Content;
@@ -104,7 +130,7 @@ namespace MovieBot.Worker
 
         private async Task Ready()
         {
-            var botTestChannel = _client.GetChannel(BotTestChannel) as SocketTextChannel;
+            var botTestChannel = _client.GetChannel(GeneralChannel) as SocketTextChannel;
         }
     }
 }

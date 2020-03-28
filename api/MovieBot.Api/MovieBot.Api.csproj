@@ -10,4 +10,7 @@
   <ItemGroup>
     <Compile Remove="WeatherForecast.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NLog.Web.AspNetCore" Version="4.9.0" />
+  </ItemGroup>
 </Project>
