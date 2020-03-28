@@ -34,6 +34,28 @@ steps:
     TargetFolder: '$(Build.ArtifactStagingDirectory)/worker'
     CleanTargetFolder: true
 
+- task: YarnInstaller@3
+  inputs:
+    versionSpec: '1.x'
+    checkLatest: true
+
+- task: Yarn@3
+  inputs:
+    projectDirectory: 'ui'
+    arguments: 'install --check-files'
+
+- task: Yarn@3
+  inputs:
+    projectDirectory: 'ui'
+    arguments: 'build'
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: 'ui/dist'
+    Contents: '**'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/ui'
+    CleanTargetFolder: true
+
 - task: PublishBuildArtifacts@1
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
