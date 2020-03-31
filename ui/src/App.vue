@@ -1,32 +1,43 @@
 <template>
   <div id="app">
-    <div id="nav">
-      <router-link to="/">Home</router-link> |
-      <router-link to="/about">About</router-link>
-    </div>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <router-link class="navbar-brand" to="/">Movie Bot</router-link>
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-toggle="collapse"
+        data-target="#navbarColor02"
+        aria-controls="navbarColor02"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarColor02">
+        <ul class="navbar-nav mr-auto">
+          <router-link to="/" v-slot="{ href, route, navigate, isExactActive }">
+            <li :class="[isExactActive && 'active', 'nav-item']">
+              <a :href="href" @click="navigate" class="nav-link">
+                Home <span class="sr-only">(current)</span>
+              </a>
+            </li>
+          </router-link>
+
+          <router-link
+            to="/about"
+            v-slot="{ href, route, navigate, isExactActive }"
+          >
+            <li :class="[isExactActive && 'active', 'nav-item']">
+              <a :href="href" @click="navigate" class="nav-link"> About</a>
+            </li>
+          </router-link>
+        </ul>
+      </div>
+    </nav>
     <router-view />
   </div>
 </template>
 
 <style lang="scss">
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-}
-
-#nav {
-  padding: 30px;
-
-  a {
-    font-weight: bold;
-    color: #2c3e50;
-
-    &.router-link-exact-active {
-      color: #42b983;
-    }
-  }
-}
 </style>

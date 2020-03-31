@@ -29,9 +29,16 @@ steps:
 
 - task: CopyFiles@2
   inputs:
-    SourceFolder: 'api/MovieBot.Worker/bin'
+    SourceFolder: 'api/MovieBot.Worker/bin/Release/netcoreapp3.0/linux-x64'
     Contents: '**'
     TargetFolder: '$(Build.ArtifactStagingDirectory)/worker'
+    CleanTargetFolder: true
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: 'api/MovieBot.Api/bin/Release/netcoreapp3.0/linux-x64'
+    Contents: '**'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/api'
     CleanTargetFolder: true
 
 - task: YarnInstaller@3
