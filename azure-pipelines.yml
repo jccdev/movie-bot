@@ -31,14 +31,14 @@ steps:
   inputs:
     SourceFolder: 'api/MovieBot.Worker/bin/Release/netcoreapp3.0/linux-x64'
     Contents: '**'
-    TargetFolder: '$(Build.ArtifactStagingDirectory)/worker'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/artifacts/worker'
     CleanTargetFolder: true
 
 - task: CopyFiles@2
   inputs:
     SourceFolder: 'api/MovieBot.Api/bin/Release/netcoreapp3.0/linux-x64'
     Contents: '**'
-    TargetFolder: '$(Build.ArtifactStagingDirectory)/api'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/artifacts/api'
     CleanTargetFolder: true
 
 - task: YarnInstaller@3
@@ -60,8 +60,21 @@ steps:
   inputs:
     SourceFolder: 'ui/dist'
     Contents: '**'
-    TargetFolder: '$(Build.ArtifactStagingDirectory)/ui'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/artifacts/ui'
     CleanTargetFolder: true
+
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/artifacts'
+    includeRootFolder: true    
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/artifacts.zip'
+    replaceExistingArchive: true
+
+- task: DeleteFiles@1
+  inputs:
+    SourceFolder: '$(Build.ArtifactStagingDirectory)'
+    Contents: 'artifacts'
 
 - task: PublishBuildArtifacts@1
   inputs:
