@@ -14,6 +14,8 @@ using Microsoft.Extensions.Logging;
 
 namespace MovieBot.Api
 {
+    // todo enable JWT
+    //https://jasonwatmore.com/post/2019/10/11/aspnet-core-3-jwt-authentication-tutorial-with-example-api
     public class Startup
     {
         public Startup(IConfiguration configuration)
@@ -43,12 +45,13 @@ namespace MovieBot.Api
             });
 
             app.UseRouting();
-
+            app.UseCors();
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapControllers();
+                endpoints.MapControllers().RequireAuthorization();
             });
         }
     }

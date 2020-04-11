@@ -11,6 +11,8 @@
     <Compile Remove="WeatherForecast.cs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Discord.Net" Version="2.1.1" />
+    <PackageReference Include="MongoDB.Driver" Version="2.10.3" />
     <PackageReference Include="NLog.Web.AspNetCore" Version="4.9.0" />
   </ItemGroup>
 </Project>
