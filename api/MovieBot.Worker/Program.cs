@@ -52,6 +52,8 @@ namespace MovieBot.Worker
                     ConventionRegistry.Register("camel case", pack, t => true);
 
                     services.AddHostedService<Worker>();
+
+                    services.AddSingleton(new MovieBotDetails(hostContext.HostingEnvironment.EnvironmentName));
                     
                     services.AddSingleton<IMovieBotDbFactory, MovieBotDbFactory>();
                     services.AddTransient<IPollDataAccess, PollDataAccess>();
@@ -59,5 +61,15 @@ namespace MovieBot.Worker
                     services.AddTransient<IBotCommandsService, BotCommandsService>();
                     services.AddTransient<IPollService, PollService>();
                 });
+    }
+}
+
+public class MovieBotDetails
+{
+    public string EnvironmentName { get; }
+
+    public MovieBotDetails(string environmentName)
+    {
+        EnvironmentName = environmentName;
     }
 }

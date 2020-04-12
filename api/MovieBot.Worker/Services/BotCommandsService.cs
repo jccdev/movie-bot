@@ -9,8 +9,10 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using MovieBot.Worker.Constants;
 using MovieBot.Worker.Models;
+using NLog;
 
 namespace MovieBot.Worker.Services
 {
@@ -19,18 +21,24 @@ namespace MovieBot.Worker.Services
         private const string EchoText = "!movie-bot echo ";
         private readonly IPollService _pollService;
         private readonly IConfiguration _configuration;
-        
+        private readonly ILogger<BotCommandsService> _logger;
 
-        public BotCommandsService(IPollService pollService, IConfiguration configuration)
+        public BotCommandsService(IPollService pollService, IConfiguration configuration, ILogger<BotCommandsService> logger, MovieBotDetails details)
         {
             _pollService = pollService;
             _configuration = configuration;
+            _logger = logger;
+            _logger.LogInformation($"Environment: {details.EnvironmentName}");
         }
 
         public async Task ProcessCommands(IMessage message)
         {
             var included = _configuration.GetSection("Bot:Included").Get<ulong[]>() ?? Enumerable.Empty<ulong>();
             var excluded = _configuration.GetSection("Bot:Excluded").Get<ulong[]>() ?? Enumerable.Empty<ulong>();
+
+            _logger.LogInformation($"Included: {string.Join(", ", included.Select(x => x.ToString()))}.");
+            _logger.LogInformation($"Excluded: { string.Join(", ", excluded.Select(x => x.ToString()))}.");
+            
             if (
                 (included.Any() && included.All(i => i != message.Channel.Id))
                 || excluded.Any(e => e == message.Channel.Id))
