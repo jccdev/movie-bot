@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Text.Json;
 using Discord.WebSocket;
+using Microsoft.Extensions.Configuration;
 using MovieBot.Worker.Constants;
 using MovieBot.Worker.Models;
 
@@ -17,14 +18,26 @@ namespace MovieBot.Worker.Services
     {
         private const string EchoText = "!movie-bot echo ";
         private readonly IPollService _pollService;
+        private readonly IConfiguration _configuration;
+        
 
-        public BotCommandsService(IPollService pollService)
+        public BotCommandsService(IPollService pollService, IConfiguration configuration)
         {
             _pollService = pollService;
+            _configuration = configuration;
         }
 
         public async Task ProcessCommands(IMessage message)
         {
+            var included = _configuration.GetSection("Bot:Included").Get<ulong[]>() ?? Enumerable.Empty<ulong>();
+            var excluded = _configuration.GetSection("Bot:Excluded").Get<ulong[]>() ?? Enumerable.Empty<ulong>();
+            if (
+                (included.Any() && included.All(i => i != message.Channel.Id))
+                || excluded.Any(e => e == message.Channel.Id))
+            {
+                return;
+            }
+            
             if (message.Content == "!movie-bot" || message.Content == "!movie-bot help")
             {
                 await Help(message);
