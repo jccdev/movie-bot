@@ -11,28 +11,26 @@ using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MovieBot.Worker.Constants;
 using MovieBot.Worker.Services;
 
 namespace MovieBot.Worker
 {
-    // TODO implement this worker: https://devblogs.microsoft.com/dotnet/net-core-and-systemd/
-
     public class Worker : BackgroundService
     {
-        private const ulong BotTestChannel = 692578131646611466;
-        private const ulong GeneralChannel = 691009601402962126;
         private readonly ILogger<Worker> _logger;
         private DiscordSocketClient _client;
         private readonly IBotCommandsService _botCommandsService;
         private readonly IPollService _pollService;
         private bool _ready = false;
+        private readonly IPromptService _promptService;
 
-        public Worker(ILogger<Worker> logger, IBotCommandsService botCommandsServiceService, IPollService pollService)
+        public Worker(ILogger<Worker> logger, IBotCommandsService botCommandsServiceService, IPollService pollService, IPromptService promptService)
         {
             _botCommandsService = botCommandsServiceService;
             _pollService = pollService;
+            _promptService = promptService;
             _logger = logger;
-            
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -44,6 +42,7 @@ namespace MovieBot.Worker
                 _client = new DiscordSocketClient();
 
                 _client.Log += Log;
+                _client.ReactionAdded += ReactionAdded;
                 _client.MessageReceived += MessageReceived;
                 _client.Ready += () => Ready(stoppingToken);
 
@@ -84,6 +83,18 @@ namespace MovieBot.Worker
         {
             _ready = true;
             return Task.CompletedTask;
+        }
+
+        private async Task ReactionAdded(Cacheable<IUserMessage, ulong> cached, ISocketMessageChannel channel,
+            SocketReaction reaction)
+        {
+            var message = await cached.GetOrDownloadAsync();
+            if (message.Author.Id == BotConstants.BotUserId &&
+                reaction.UserId != BotConstants.BotUserId)
+            {
+                await _pollService.ProcessPollConfigResponse(channel, message, reaction);
+                await _promptService.ProcessPendingPrompts(message, reaction, _client.Rest);
+            }
         }
     }
 }

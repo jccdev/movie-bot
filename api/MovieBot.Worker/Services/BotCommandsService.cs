@@ -22,25 +22,22 @@ namespace MovieBot.Worker.Services
         private readonly IPollService _pollService;
         private readonly IConfiguration _configuration;
         private readonly ILogger<BotCommandsService> _logger;
+        private readonly IPromptService _promptService;
 
-        public BotCommandsService(IPollService pollService, IConfiguration configuration, ILogger<BotCommandsService> logger, MovieBotDetails details)
+        public BotCommandsService(IPollService pollService, IConfiguration configuration, ILogger<BotCommandsService> logger, IPromptService promptService)
         {
             _pollService = pollService;
             _configuration = configuration;
             _logger = logger;
-            _logger.LogInformation($"Environment: {details.EnvironmentName}");
+            _promptService = promptService;
         }
 
         public async Task ProcessCommands(IMessage message)
         {
             var included = _configuration.GetSection("Bot:Included").Get<ulong[]>() ?? Enumerable.Empty<ulong>();
             var excluded = _configuration.GetSection("Bot:Excluded").Get<ulong[]>() ?? Enumerable.Empty<ulong>();
-
-            _logger.LogInformation($"Included: {string.Join(", ", included.Select(x => x.ToString()))}.");
-            _logger.LogInformation($"Excluded: { string.Join(", ", excluded.Select(x => x.ToString()))}.");
             
-            if (
-                (included.Any() && included.All(i => i != message.Channel.Id))
+            if ((included.Any() && included.All(i => i != message.Channel.Id))
                 || excluded.Any(e => e == message.Channel.Id))
             {
                 return;
@@ -94,52 +91,85 @@ namespace MovieBot.Worker.Services
 
         private async Task Poll(IMessage message)
         {
-
             var poll = MapToPoll(message);
-
             var builder = new StringBuilder();
+            var prompt = default(Prompt);
+            
             var reactions = new List<IEmote>();
             if (poll != null)
             {
-                builder.AppendLine($"**POLL**");
+                builder.AppendLine("**POLL Options**");
                 builder.AppendLine();
-                builder.AppendLine($"> {poll.Question}");
-                var i = 0;
-                foreach (var answer in poll.Answers)
+                builder.AppendLine("Poll closes:");
+                builder.AppendLine($"{Indicators.A} - 5 mins");
+                builder.AppendLine();
+                builder.AppendLine($"{Indicators.B} - 15 mins");
+                builder.AppendLine();
+                builder.AppendLine($"{Indicators.C} - 30 mins");
+                builder.AppendLine();
+                builder.AppendLine($"{Indicators.D} - 1 hr");
+                builder.AppendLine();
+                builder.AppendLine($"{Indicators.E} - I will close manually.");
+                
+                reactions.AddRange(new []
                 {
-                    builder.AppendLine();
-                    var emoji = Indicators.All[i];
-                    answer.Reaction = emoji;
-                    reactions.Add(new Emoji(emoji));
-                    builder.AppendLine($"{emoji} - *{answer.Answer}*");
-                    i++;
-                }
-                builder.AppendLine();
-                var minutes = TimeSpan.FromSeconds(poll.Expires);
-                builder.AppendLine($"Poll ends in {minutes.TotalMinutes} minute(s).");
+                    new Emoji(Indicators.A),
+                    new Emoji(Indicators.B),
+                    new Emoji(Indicators.C),
+                    new Emoji(Indicators.D),
+                    new Emoji(Indicators.E), 
+                });
                 builder.AppendLine();
                 builder.AppendLine("Please choose:");
             }
             else
             {
-                builder.AppendLine("POLL Instructions:");
+                builder.AppendLine("**POLL Instructions**");
                 builder.AppendLine();
-                builder.AppendLine("!movie-bot poll `Question` | `Answer 1` | `Answer 2`");
-                builder.AppendLine("Limit of 10 answers.");
+                builder.AppendLine("__*New Poll:*__");
+                builder.AppendLine("`!movie-bot poll Question | Answer 1 | Answer 2`");
+                builder.AppendLine("**Limit of 10 answers.*");
+
+
+                prompt = await _promptService.CreatePollPrompt(message.Author.Id);
+
+                if (prompt != default)
+                {
+                    builder.AppendLine();
+                    builder.AppendLine("__*Close Polls:*__");
+                    foreach (var reactionMap in prompt.Data.Poll.ClosePollReactionMap)
+                    {
+                        var emoji = new Emoji(reactionMap.Emoji);
+                        reactions.Add(emoji);
+                        builder.AppendLine($"{emoji} - {reactionMap.Question}");
+                        builder.AppendLine();
+                    }
+                    builder.AppendLine("*Select Below:*");
+                }
+
+                builder.AppendLine();
             }
 
             var res = await message.Channel.SendMessageAsync(builder.ToString());
 
             if (poll != null)
             {
-                poll.PollMessageId = res.Id;
+                poll.ConfigMessageId = res.Id;
                 await _pollService.Add(poll);
             }
 
-            var sentMessage =  await message.Channel.GetMessageAsync(res.Id) as IUserMessage; 
-            await sentMessage.AddReactionsAsync(reactions.ToArray());
-        }
+            if (prompt != default)
+            {
+                prompt.MessageId = res.Id;
+                await _promptService.Add(prompt);
+            }
 
+            var sentMessage =  await message.Channel.GetMessageAsync(res.Id) as IUserMessage;
+            if (reactions.Any())
+            {
+                await sentMessage.AddReactionsAsync(reactions.ToArray());
+            }
+        }
         private async Task Ban(IMessage message)
         {
             if (message.MentionedUserIds.Any())
