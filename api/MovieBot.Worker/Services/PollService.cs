@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
+using MovieBot.Worker.Constants;
 using MovieBot.Worker.DataAccess;
 using MovieBot.Worker.Models;
 
@@ -22,74 +24,125 @@ namespace MovieBot.Worker.Services
         {
             _dataAccess = dataAccess;
         }
-        
+
         public async Task HandleExpired(DiscordSocketClient client)
         {
             var expired =  await _dataAccess.GetExpired();
             foreach (var poll in expired)
             {
-                var channel = (RestTextChannel)(await client.Rest.GetChannelAsync(poll.ChannelId));
-                var origMsg = (RestUserMessage)(await channel.GetMessageAsync(poll.PollMessageId));
-                var builder = new StringBuilder();
-                builder.AppendLine("**POLL RESULTS**");
+                await ClosePoll(poll, client.Rest);
+            }
+        }
+
+        public async Task HandlePrompt(Prompt prompt, SocketReaction reaction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task ClosePoll(ObjectId pollId, DiscordRestClient client)
+        {
+            var poll = await _dataAccess.Get(pollId);
+            await ClosePoll(poll, client);
+        }
+
+
+        private async Task ClosePoll(Poll poll, DiscordRestClient client)
+        {
+            var channel = (RestTextChannel)(await client.GetChannelAsync(poll.ChannelId));
+            var origMsg = (RestUserMessage)(await channel.GetMessageAsync(poll.PollMessageId.Value));
+            var builder = new StringBuilder();
+            builder.AppendLine("**POLL RESULTS**");
+            builder.AppendLine();
+            builder.AppendLine($"> {poll.Question}");
+
+            var winnerCount = 0;
+            var winners = new List<PollAnswer>();
+
+            foreach (var answer in poll.Answers)
+            {
+                var emoji = new Emoji(answer.Reaction);
+
+                var reactionUsers = await origMsg.GetReactionUsersAsync(emoji, int.MaxValue).FlattenAsync();
+
+                var userIds = reactionUsers
+                    .Where(ru => !ru.IsBot)
+                    .Select(ru => ru.Id)
+                    .ToList();
+
+                answer.VoterIds = userIds;
+
                 builder.AppendLine();
-                builder.AppendLine($"> {poll.Question}");
+                builder.AppendLine($"{emoji} - {answer.VoterIds.Count()} vote(s) - `{answer.Answer}`");
 
-                var winnerCount = 0;
-                var winners = new List<PollAnswer>();
-
-                foreach (var answer in poll.Answers)
+                if (userIds.Count > winnerCount)
                 {
-                    var emoji = new Emoji(answer.Reaction);
+                    winnerCount = userIds.Count;
+                    winners.Clear();
+                }
 
-                    var reactionUsers = await origMsg.GetReactionUsersAsync(emoji, int.MaxValue).FlattenAsync();
+                if (winnerCount > 0 && userIds.Count == winnerCount)
+                {
+                    winners.Add(answer);
+                }
+            }
 
-                    var userIds = reactionUsers
-                        .Where(ru => !ru.IsBot)
-                        .Select(ru => ru.Id)
-                        .ToList();
+            builder.AppendLine();
+            builder.AppendLine($"**Winner(s)**");
 
-                    answer.VoterIds = userIds;
+            if (winnerCount == 0 || winnerCount == poll.Answers.Count())
+            {
+                builder.AppendLine("Nothing won, way to be indecisive!");
+            }
 
-                    builder.AppendLine();
-                    builder.AppendLine($"{emoji} - {answer.VoterIds.Count()} vote(s) - `{answer.Answer}`");
+            foreach (var winner in winners)
+            {
+                winner.IsWinner = true;
+                builder.AppendLine($"*{winner.Answer}*");
+            }
 
-                    if (userIds.Count > winnerCount)
-                    {
-                        winnerCount = userIds.Count;
-                        winners.Clear();
-                    }
+            await channel.SendMessageAsync(builder.ToString());
+            poll.Complete = true;
+            await Update(poll);
+        }
 
-                    if (winnerCount > 0 && userIds.Count == winnerCount)
-                    {
-                        winners.Add(answer);
-                    }
+        public async Task ProcessPollConfigResponse(DiscordRestClient client, ulong messageId)
+        {
+            var poll =  await _dataAccess.GetPendingPoll(messageId);
+            if (poll != null)
+            {
+                var channel = (RestTextChannel)(await client.GetChannelAsync(poll.ChannelId));
+                var origMsg = (RestUserMessage)(await channel.GetMessageAsync(poll.ConfigMessageId));
+
+                if (await ReactionMatch(origMsg, new Emoji(Indicators.E), poll.CreatorId))
+                {
+                    await ConfigurePoll(poll, channel);
                 }
                 
-                builder.AppendLine();
-                builder.AppendLine($"**Winner(s)**");
-
-                if (winnerCount == 0 || winnerCount == poll.Answers.Count())
+                else if (await ReactionMatch(origMsg, new Emoji(Indicators.A), poll.CreatorId))
                 {
-                    builder.AppendLine("Nothing won, way to be indecisive!");
+                    await ConfigurePoll(poll, channel, 5);
                 }
-
-                foreach (var winner in winners)
+                
+                else if (await ReactionMatch(origMsg, new Emoji(Indicators.B), poll.CreatorId))
                 {
-                    winner.IsWinner = true;
-                    builder.AppendLine($"*{winner.Answer}*");
+                    await ConfigurePoll(poll, channel, 15);
                 }
-
-                await channel.SendMessageAsync(builder.ToString());
-                poll.Complete = true;
-                await Update(poll);
+                
+                else if (await ReactionMatch(origMsg, new Emoji(Indicators.C), poll.CreatorId))
+                {
+                    await ConfigurePoll(poll, channel, 30);
+                }
+                
+                else if (await ReactionMatch(origMsg, new Emoji(Indicators.D), poll.CreatorId))
+                {
+                    await ConfigurePoll(poll, channel, 60);
+                }                
             }
         }
         
         public async Task Add(Poll poll)
         {
             var date = DateTimeOffset.UtcNow;
-            poll.ExpiresAt = date.AddSeconds(poll.Expires);
             poll.CreatedAt = date;
             poll.UpdatedAt = date;
             await _dataAccess.Add(poll);
@@ -101,6 +154,57 @@ namespace MovieBot.Worker.Services
             poll.CreatedAt = date;
             poll.UpdatedAt = date;
             await _dataAccess.Update(poll);
+        }
+
+        private async Task<bool> ReactionMatch(RestUserMessage message, IEmote emote, ulong id)
+        {
+            var reactions = await message
+                .GetReactionUsersAsync(emote, int.MaxValue)
+                .FlattenAsync();
+            return reactions.Any(r => r.Id == id);
+        }
+        
+        private async Task ConfigurePoll(Poll poll, RestTextChannel channel, int? expireMins = null)
+        {
+            var reactions = new List<IEmote>();
+            var builder = new StringBuilder();
+            builder.AppendLine($"**POLL**");
+            builder.AppendLine();
+            builder.AppendLine($"> {poll.Question}");
+            var i = 0;
+            foreach (var answer in poll.Answers)
+            {
+                builder.AppendLine();
+                var emoji = Indicators.All[i];
+                answer.Reaction = emoji;
+                reactions.Add(new Emoji(emoji));
+                builder.AppendLine($"{emoji} - *{answer.Answer}*");
+                i++;
+            }
+
+            if (expireMins != null)
+            {
+                poll.ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(expireMins.Value);
+                if (expireMins.Value >= 60)
+                {
+                    builder.AppendLine($"Poll ends in {TimeSpan.FromMinutes(expireMins.Value).TotalHours} hour(s).");
+                }
+                else
+                {
+                    builder.AppendLine();
+                    builder.AppendLine($"Poll ends in {expireMins.Value} minute(s).");
+                }
+            }
+            
+            builder.AppendLine();
+            builder.AppendLine("Please choose:");
+            
+            var sentMessage = await channel.SendMessageAsync(builder.ToString());
+            await sentMessage.AddReactionsAsync(reactions.ToArray());
+
+            poll.PollMessageId = sentMessage.Id;
+            await _dataAccess.Update(poll);            
+            await channel.DeleteMessageAsync(poll.ConfigMessageId);
         }
     }
 }

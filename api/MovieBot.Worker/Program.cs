@@ -53,23 +53,11 @@ namespace MovieBot.Worker
 
                     services.AddHostedService<Worker>();
 
-                    services.AddSingleton(new MovieBotDetails(hostContext.HostingEnvironment.EnvironmentName));
-                    
                     services.AddSingleton<IMovieBotDbFactory, MovieBotDbFactory>();
                     services.AddTransient<IPollDataAccess, PollDataAccess>();
                     services.AddTransient<IBotCommandsService, BotCommandsService>();
                     services.AddTransient<IBotCommandsService, BotCommandsService>();
                     services.AddTransient<IPollService, PollService>();
                 });
-    }
-}
-
-public class MovieBotDetails
-{
-    public string EnvironmentName { get; }
-
-    public MovieBotDetails(string environmentName)
-    {
-        EnvironmentName = environmentName;
     }
 }

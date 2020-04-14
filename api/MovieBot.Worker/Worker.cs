@@ -11,16 +11,13 @@ using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MovieBot.Worker.Constants;
 using MovieBot.Worker.Services;
 
 namespace MovieBot.Worker
 {
-    // TODO implement this worker: https://devblogs.microsoft.com/dotnet/net-core-and-systemd/
-
     public class Worker : BackgroundService
     {
-        private const ulong BotTestChannel = 692578131646611466;
-        private const ulong GeneralChannel = 691009601402962126;
         private readonly ILogger<Worker> _logger;
         private DiscordSocketClient _client;
         private readonly IBotCommandsService _botCommandsService;
@@ -44,6 +41,7 @@ namespace MovieBot.Worker
                 _client = new DiscordSocketClient();
 
                 _client.Log += Log;
+                _client.ReactionAdded += ReactionAdded;
                 _client.MessageReceived += MessageReceived;
                 _client.Ready += () => Ready(stoppingToken);
 
@@ -84,6 +82,17 @@ namespace MovieBot.Worker
         {
             _ready = true;
             return Task.CompletedTask;
+        }
+
+        private async Task ReactionAdded(Cacheable<IUserMessage, ulong> cached, ISocketMessageChannel channel,
+            SocketReaction reaction)
+        {
+            var message = await cached.GetOrDownloadAsync();
+            if (message.Author.Id == BotConstants.BotUserId &&
+                reaction.UserId != BotConstants.BotUserId)
+            {
+                await _pollService.ProcessPollConfigResponse(_client.Rest, message.Id);
+            }
         }
     }
 }
