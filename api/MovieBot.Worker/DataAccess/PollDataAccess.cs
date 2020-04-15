@@ -59,6 +59,23 @@ namespace MovieBot.Worker.DataAccess
                 .FirstOrDefaultAsync();
             return result;
         }
+        
+        public async Task<IEnumerable<Poll>> GetPendingPollsForUser(ulong userId, int? limit = null)
+        {
+            var database = _dbFactory.Get();
+            var collection = database.GetCollection<Poll>(CollectionName);
+            IFindFluent<Poll, Poll> filtered = collection
+                .Find(x => x.CreatorId == userId && !x.Complete)
+                .SortBy(x => x.CreatedAt);
+
+            if (limit.HasValue)
+            {
+                filtered = filtered.Limit(limit.Value);
+            }
+
+            var results = await filtered.ToListAsync();
+            return results;
+        }
 
         public async Task<IEnumerable<Poll>> GetOpenPollsForUser(ulong userId)
         {

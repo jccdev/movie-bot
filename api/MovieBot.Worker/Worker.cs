@@ -23,13 +23,14 @@ namespace MovieBot.Worker
         private readonly IBotCommandsService _botCommandsService;
         private readonly IPollService _pollService;
         private bool _ready = false;
+        private readonly IPromptService _promptService;
 
-        public Worker(ILogger<Worker> logger, IBotCommandsService botCommandsServiceService, IPollService pollService)
+        public Worker(ILogger<Worker> logger, IBotCommandsService botCommandsServiceService, IPollService pollService, IPromptService promptService)
         {
             _botCommandsService = botCommandsServiceService;
             _pollService = pollService;
+            _promptService = promptService;
             _logger = logger;
-            
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -91,7 +92,8 @@ namespace MovieBot.Worker
             if (message.Author.Id == BotConstants.BotUserId &&
                 reaction.UserId != BotConstants.BotUserId)
             {
-                await _pollService.ProcessPollConfigResponse(_client.Rest, message.Id);
+                await _pollService.ProcessPollConfigResponse(channel, message, reaction);
+                await _promptService.ProcessPendingPrompts(message, reaction, _client.Rest);
             }
         }
     }

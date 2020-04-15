@@ -14,5 +14,6 @@ namespace MovieBot.Worker.DataAccess
         Task<Poll> GetPendingPoll(ulong messageId);
         Task<IEnumerable<Poll>> GetOpenPollsForUser(ulong userId);
         Task<Poll> Get(ObjectId id);
+        Task<IEnumerable<Poll>> GetPendingPollsForUser(ulong userId, int? limit = null);
     }
 }

@@ -22,12 +22,14 @@ namespace MovieBot.Worker.Services
         private readonly IPollService _pollService;
         private readonly IConfiguration _configuration;
         private readonly ILogger<BotCommandsService> _logger;
+        private readonly IPromptService _promptService;
 
-        public BotCommandsService(IPollService pollService, IConfiguration configuration, ILogger<BotCommandsService> logger)
+        public BotCommandsService(IPollService pollService, IConfiguration configuration, ILogger<BotCommandsService> logger, IPromptService promptService)
         {
             _pollService = pollService;
             _configuration = configuration;
             _logger = logger;
+            _promptService = promptService;
         }
 
         public async Task ProcessCommands(IMessage message)
@@ -89,10 +91,10 @@ namespace MovieBot.Worker.Services
 
         private async Task Poll(IMessage message)
         {
-
             var poll = MapToPoll(message);
-
             var builder = new StringBuilder();
+            var prompt = default(Prompt);
+            
             var reactions = new List<IEmote>();
             if (poll != null)
             {
@@ -124,9 +126,27 @@ namespace MovieBot.Worker.Services
             {
                 builder.AppendLine("**POLL Instructions**");
                 builder.AppendLine();
-                builder.AppendLine("New Poll:");
+                builder.AppendLine("__*New Poll:*__");
                 builder.AppendLine("`!movie-bot poll Question | Answer 1 | Answer 2`");
                 builder.AppendLine("**Limit of 10 answers.*");
+
+
+                prompt = await _promptService.CreatePollPrompt(message.Author.Id);
+
+                if (prompt != default)
+                {
+                    builder.AppendLine();
+                    builder.AppendLine("__*Close Polls:*__");
+                    foreach (var reactionMap in prompt.Data.Poll.ClosePollReactionMap)
+                    {
+                        var emoji = new Emoji(reactionMap.Emoji);
+                        reactions.Add(emoji);
+                        builder.AppendLine($"{emoji} - {reactionMap.Question}");
+                        builder.AppendLine();
+                    }
+                    builder.AppendLine("*Select Below:*");
+                }
+
                 builder.AppendLine();
             }
 
@@ -136,6 +156,12 @@ namespace MovieBot.Worker.Services
             {
                 poll.ConfigMessageId = res.Id;
                 await _pollService.Add(poll);
+            }
+
+            if (prompt != default)
+            {
+                prompt.MessageId = res.Id;
+                await _promptService.Add(prompt);
             }
 
             var sentMessage =  await message.Channel.GetMessageAsync(res.Id) as IUserMessage;

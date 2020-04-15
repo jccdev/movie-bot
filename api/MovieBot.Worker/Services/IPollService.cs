@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
 using MongoDB.Bson;
@@ -11,8 +13,8 @@ namespace MovieBot.Worker.Services
         Task HandleExpired(DiscordSocketClient client);
         Task Add(Poll poll);
         Task Update(Poll poll);
-        Task ProcessPollConfigResponse(DiscordRestClient client, ulong messageId);
-        Task HandlePrompt(Prompt prompt, SocketReaction reaction);
+        Task ProcessPollConfigResponse(IMessageChannel channel, IMessage origMsg, SocketReaction reaction);
         Task ClosePoll(ObjectId pollId, DiscordRestClient client);
+        Task<IEnumerable<Poll>> GetPending(ulong userId, int? limit = null);
     }
 }

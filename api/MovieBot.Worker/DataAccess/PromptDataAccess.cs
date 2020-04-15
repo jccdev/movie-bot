@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using MongoDB.Driver;
+using MovieBot.Worker.Models;
 using MovieBot.Worker.Services;
 
 namespace MovieBot.Worker.DataAccess
@@ -26,7 +27,7 @@ namespace MovieBot.Worker.DataAccess
             return _genericDataAccess.Update(poll);
         }
         
-        public async Task<Prompt> FindPending(ulong messageId, ulong creatorId)
+        public async Task<Prompt> GetPending(ulong messageId, ulong creatorId)
         {
             var database = _dbFactory.Get();
             var collection = database.GetCollection<Prompt>(CollectionName);

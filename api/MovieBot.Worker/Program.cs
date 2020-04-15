@@ -58,6 +58,9 @@ namespace MovieBot.Worker
                     services.AddTransient<IBotCommandsService, BotCommandsService>();
                     services.AddTransient<IBotCommandsService, BotCommandsService>();
                     services.AddTransient<IPollService, PollService>();
+                    services.AddTransient<IPromptDataAccess, PromptDataAccess>();
+                    services.AddTransient<IPromptService, PromptService>();
+                    services.AddTransient(typeof(IGenericDataAccess<>), typeof(GenericDataAccess<>));
                 });
     }
 }

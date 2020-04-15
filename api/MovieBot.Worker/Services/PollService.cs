@@ -34,11 +34,6 @@ namespace MovieBot.Worker.Services
             }
         }
 
-        public async Task HandlePrompt(Prompt prompt, SocketReaction reaction)
-        {
-            throw new NotImplementedException();
-        }
-
         public async Task ClosePoll(ObjectId pollId, DiscordRestClient client)
         {
             var poll = await _dataAccess.Get(pollId);
@@ -105,38 +100,29 @@ namespace MovieBot.Worker.Services
             await Update(poll);
         }
 
-        public async Task ProcessPollConfigResponse(DiscordRestClient client, ulong messageId)
+        public async Task ProcessPollConfigResponse(IMessageChannel channel, IMessage origMsg, SocketReaction reaction)
         {
-            var poll =  await _dataAccess.GetPendingPoll(messageId);
-            if (poll != null)
+            var poll =  await _dataAccess.GetPendingPoll(origMsg.Id);
+            if (poll != null && poll.CreatorId == reaction.UserId)
             {
-                var channel = (RestTextChannel)(await client.GetChannelAsync(poll.ChannelId));
-                var origMsg = (RestUserMessage)(await channel.GetMessageAsync(poll.ConfigMessageId));
-
-                if (await ReactionMatch(origMsg, new Emoji(Indicators.E), poll.CreatorId))
+                switch (reaction.Emote.Name)
                 {
-                    await ConfigurePoll(poll, channel);
+                    case Indicators.E:
+                        await ConfigurePoll(poll, channel);
+                        break;
+                    case Indicators.A:
+                        await ConfigurePoll(poll, channel, 5);
+                        break;
+                    case Indicators.B:
+                        await ConfigurePoll(poll, channel, 15);
+                        break;
+                    case Indicators.C:
+                        await ConfigurePoll(poll, channel, 30);
+                        break;
+                    case Indicators.D:
+                        await ConfigurePoll(poll, channel, 60);
+                        break;
                 }
-                
-                else if (await ReactionMatch(origMsg, new Emoji(Indicators.A), poll.CreatorId))
-                {
-                    await ConfigurePoll(poll, channel, 5);
-                }
-                
-                else if (await ReactionMatch(origMsg, new Emoji(Indicators.B), poll.CreatorId))
-                {
-                    await ConfigurePoll(poll, channel, 15);
-                }
-                
-                else if (await ReactionMatch(origMsg, new Emoji(Indicators.C), poll.CreatorId))
-                {
-                    await ConfigurePoll(poll, channel, 30);
-                }
-                
-                else if (await ReactionMatch(origMsg, new Emoji(Indicators.D), poll.CreatorId))
-                {
-                    await ConfigurePoll(poll, channel, 60);
-                }                
             }
         }
         
@@ -156,15 +142,13 @@ namespace MovieBot.Worker.Services
             await _dataAccess.Update(poll);
         }
 
-        private async Task<bool> ReactionMatch(RestUserMessage message, IEmote emote, ulong id)
+        public async Task<IEnumerable<Poll>> GetPending(ulong userId, int? limit = null)
         {
-            var reactions = await message
-                .GetReactionUsersAsync(emote, int.MaxValue)
-                .FlattenAsync();
-            return reactions.Any(r => r.Id == id);
+            var polls = await _dataAccess.GetPendingPollsForUser(userId, limit);
+            return polls;
         }
         
-        private async Task ConfigurePoll(Poll poll, RestTextChannel channel, int? expireMins = null)
+        private async Task ConfigurePoll(Poll poll, IMessageChannel channel, int? expireMins = null)
         {
             var reactions = new List<IEmote>();
             var builder = new StringBuilder();
