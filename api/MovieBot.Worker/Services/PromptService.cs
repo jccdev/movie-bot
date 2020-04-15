@@ -11,6 +11,7 @@ using MongoDB.Driver;
 using MovieBot.Worker.Constants;
 using MovieBot.Worker.DataAccess;
 using MovieBot.Worker.Models;
+using MovieBot.Worker.Services.Common;
 
 namespace MovieBot.Worker.Services
 {
@@ -18,11 +19,13 @@ namespace MovieBot.Worker.Services
     {
         private readonly IPollService _pollService;
         private readonly IPromptDataAccess _promptDataAccess;
+        private readonly IDefaultModelWriteActions<Prompt> _writeActions;
 
-        public PromptService(IPromptDataAccess promptDataAccess, IPollService pollService)
+        public PromptService(IPromptDataAccess promptDataAccess, IPollService pollService, IDefaultModelWriteActions<Prompt> writeActions)
         {
             _promptDataAccess = promptDataAccess;
             _pollService = pollService;
+            _writeActions = writeActions;
         }
 
         public async Task ProcessPendingPrompts(IUserMessage message, SocketReaction reaction, DiscordRestClient client)
@@ -37,6 +40,8 @@ namespace MovieBot.Worker.Services
                         if (match != default)
                         {
                             await _pollService.ClosePoll(ObjectId.Parse(match.Id), client);
+                            prompt.Complete = true;
+                            await Update(prompt);
                         }
                         break;
                     
@@ -44,6 +49,12 @@ namespace MovieBot.Worker.Services
                         throw new ArgumentException($"{nameof(PromptType)}: {prompt.PromptType} is not mapped.");
                 }
             }
+        }
+
+        public async Task Update(Prompt prompt)
+        {
+            _writeActions.SetUpdateProperties(prompt);
+            await _promptDataAccess.Update(prompt);
         }
 
         public async Task<Prompt> CreatePollPrompt(ulong userId)
@@ -84,9 +95,7 @@ namespace MovieBot.Worker.Services
         
         public async Task Add(Prompt prompt)
         {
-            var date = DateTimeOffset.UtcNow;
-            prompt.CreatedAt = date;
-            prompt.UpdatedAt = date;
+            _writeActions.SetAddProperties(prompt);
             await _promptDataAccess.Add(prompt);
         }
     }

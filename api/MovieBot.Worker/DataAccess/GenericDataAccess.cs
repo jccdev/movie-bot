@@ -1,12 +1,13 @@
 using System;
 using System.Threading.Tasks;
 using MongoDB.Driver;
+using MovieBot.Worker.Interfaces;
 using MovieBot.Worker.Models;
 using MovieBot.Worker.Services;
 
 namespace MovieBot.Worker.DataAccess
 {
-    public class GenericDataAccess<T> : IGenericDataAccess<T> where T : IDefaultModel
+    public class GenericDataAccess<T> : IGenericDataAccess<T> where T : IHasId
     {
         private readonly IMovieBotDbFactory _dbFactory;
 
@@ -37,6 +38,8 @@ namespace MovieBot.Worker.DataAccess
                     return "polls";
                 case Prompt prompt:
                     return "prompts";
+                case RouletteGame prompt:
+                    return "roulette-games";
                 default:
                     throw new Exception($"Collection for type {nameof(T)}.");
             }
