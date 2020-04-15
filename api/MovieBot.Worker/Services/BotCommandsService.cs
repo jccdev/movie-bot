@@ -7,10 +7,12 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MovieBot.Worker.Constants;
+using MovieBot.Worker.Exceptions;
 using MovieBot.Worker.Models;
 using NLog;
 
@@ -23,13 +25,15 @@ namespace MovieBot.Worker.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<BotCommandsService> _logger;
         private readonly IPromptService _promptService;
+        private readonly IRouletteService _rouletteService;
 
-        public BotCommandsService(IPollService pollService, IConfiguration configuration, ILogger<BotCommandsService> logger, IPromptService promptService)
+        public BotCommandsService(IPollService pollService, IConfiguration configuration, ILogger<BotCommandsService> logger, IPromptService promptService, IRouletteService rouletteService)
         {
             _pollService = pollService;
             _configuration = configuration;
             _logger = logger;
             _promptService = promptService;
+            _rouletteService = rouletteService;
         }
 
         public async Task ProcessCommands(IMessage message)
@@ -46,39 +50,53 @@ namespace MovieBot.Worker.Services
             if (message.Content == "!movie-bot" || message.Content == "!movie-bot help")
             {
                 await Help(message);
+                return;
             }
 
-            else if (message.Content == "!movie-bot ping")
+            if (message.Content == "!movie-bot ping")
             {
                 await message.Channel.SendMessageAsync("Pong!");
+                return;
             }
 
-            else if (message.Content.StartsWith(EchoText, StringComparison.CurrentCulture))
+            if (message.Content.StartsWith(EchoText, StringComparison.CurrentCulture))
             {
                 await message.Channel.SendMessageAsync(message.Content.Remove(0, EchoText.Length));
+                return;
             }
 
-            else if (message.Content.StartsWith("!movie-bot ") && message.Content.Contains("fbi", StringComparison.CurrentCultureIgnoreCase))
+            if (message.Content.StartsWith("!movie-bot ") && message.Content.Contains("fbi", StringComparison.CurrentCultureIgnoreCase))
             {
                 await message.Channel.SendMessageAsync("Reported to FBI!");
+                return;
             }
 
-            else if (message.Content == "!movie-bot popcorn")
+            if (message.Content == "!movie-bot popcorn")
             {
                 await message.Channel.SendMessageAsync(":popcorn::popcorn::popcorn::popcorn::popcorn:");
+                return;
             }
 
-            else if (message.Content.StartsWith("!movie-bot ban"))
+            if (message.Content.StartsWith("!movie-bot ban"))
             {
                 await Ban(message);
+                return;
             }
 
-            else if (message.Content.StartsWith(CommandText.Poll))
+            if (message.Content.StartsWith(CommandText.Poll))
             {
                 await Poll(message);
+                return;
+            }
+
+            var cmdMatch = new Regex(@"^!movie-bot\s*(?:roulette|r)(.*)", RegexOptions.IgnoreCase).Match(message.Content);
+            if (cmdMatch.Success)
+            {
+                await Roulette(message, cmdMatch);
+                return;
             }
             
-            else if (message.Content.StartsWith("!movie-bot"))
+            if (message.Content.StartsWith("!movie-bot"))
             {
                 var response = "I do not understand the command." + Environment.NewLine + ">>> " + message.Content;
                 if (message.Source == MessageSource.User)
@@ -86,6 +104,130 @@ namespace MovieBot.Worker.Services
                     response = message.Author.Mention + ", " + response;
                 }
                 await message.Channel.SendMessageAsync(response);
+            }
+        }
+
+        private async Task Roulette(IMessage message, Match regMatch)
+        {
+            
+            try
+            {
+                var cmdGroup = regMatch.Groups[1];
+                var cmdValue = cmdGroup.Value.Trim();
+                
+                async Task InstructionMessage()
+                {
+                    var builder = new StringBuilder();
+                    builder.AppendLine("**Roulette**");
+                    builder.AppendLine();
+                    builder.AppendLine("__*Spin:*__");
+                    builder.AppendLine("`!movie-bot roulette spin`");
+                    builder.AppendLine("`!movie-bot r spin`");
+                    builder.AppendLine();
+                    builder.AppendLine("__*List:*__");
+                    builder.AppendLine("`!movie-bot roulette list`");
+                    builder.AppendLine("`!movie-bot r list`");
+                    builder.AppendLine();
+                    builder.AppendLine("__*Add:*__");
+                    builder.AppendLine("`!movie-bot roulette add title`");
+                    builder.AppendLine("`!movie-bot r add title`");
+                    builder.AppendLine();
+                    builder.AppendLine("__*Remove:*__");
+                    builder.AppendLine("`!movie-bot roulette remove title`");
+                    builder.AppendLine("`!movie-bot r remove title`");
+                    builder.AppendLine();
+                    builder.AppendLine("__*Clear All:*__");
+                    builder.AppendLine("`!movie-bot roulette clear`");
+                    builder.AppendLine("`!movie-bot r clear`");
+                    builder.AppendLine();
+                    builder.AppendLine("**Limit of 20 selections.*");
+                    await message.Channel.SendMessageAsync(builder.ToString());
+                }
+
+                if (string.IsNullOrWhiteSpace(cmdValue))
+                {
+                    await InstructionMessage();
+                    return;
+                }
+
+                if (cmdValue.ToLower().Trim() == "list")
+                {
+                    var list = await _rouletteService.List();
+                    var builder = new StringBuilder();
+                    builder.AppendLine("**Roulette List**");
+                    builder.AppendLine();
+                    if (list.Any())
+                    {
+                        foreach (var title in list)
+                        {
+                            builder.AppendLine($"*{title}*");
+                        }
+                    }
+                    else
+                    {
+                        builder.AppendLine("`No titles have been added.`");
+                    }
+                    await message.Channel.SendMessageAsync(builder.ToString());
+                    return;
+                }
+                
+                if (cmdValue.ToLower().Trim() == "spin")
+                {
+                    var winner = await _rouletteService.Spin();
+                    var builder = new StringBuilder();
+                    builder.AppendLine("**Roulette Winner**");
+                    builder.AppendLine();
+                    builder.AppendLine($"***{winner}***");
+                    await message.Channel.SendMessageAsync(builder.ToString());
+                    return;
+                }
+                
+                if (cmdValue.ToLower().Trim() == "clear")
+                {
+                    await _rouletteService.Clear();
+                    var builder = new StringBuilder();
+                    builder.AppendLine("*Roulette Cleared*");
+                    await message.Channel.SendMessageAsync(builder.ToString());
+                    return;
+                }
+                
+                var addReg = new Regex(@"^add\s+(.*)", RegexOptions.IgnoreCase);
+                var addMatch = addReg.Match(cmdValue);
+                if (addMatch.Success)
+                {
+                    var title = addMatch.Groups[1].Value.Trim();
+                    await _rouletteService.AddTitle(title);
+                    var builder = new StringBuilder();
+                    builder.AppendLine("*Roulette Added*");
+                    builder.AppendLine();
+                    builder.AppendLine($"`{title}`");
+                    await message.Channel.SendMessageAsync(builder.ToString());
+                    return;
+                }
+                
+                var removeReg = new Regex(@"^remove\s+(.*)", RegexOptions.IgnoreCase);
+                var removeMatch = removeReg.Match(cmdValue);
+                if (removeMatch.Success)
+                {
+                    var title = removeMatch.Groups[1].Value.Trim();
+                    await _rouletteService.Remove(title);
+                    var builder = new StringBuilder();
+                    builder.AppendLine("*Roulette Removed*");
+                    builder.AppendLine();
+                    builder.AppendLine($"`{title}`");
+                    await message.Channel.SendMessageAsync(builder.ToString());
+                    return;
+                }
+
+                await InstructionMessage();
+            }
+            catch (RouletteException ex)
+            {
+                var builder = new StringBuilder();
+                builder.AppendLine("**Roulette Error**");
+                builder.AppendLine();
+                builder.AppendLine($"`{ex.Message}`");
+                await message.Channel.SendMessageAsync(builder.ToString());
             }
         }
 
@@ -239,4 +381,5 @@ namespace MovieBot.Worker.Services
             await message.Channel.SendMessageAsync(builder.ToString());
         }
     }
+    
 }

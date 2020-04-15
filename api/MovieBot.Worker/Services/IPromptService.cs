@@ -11,5 +11,6 @@ namespace MovieBot.Worker.Services
         Task ProcessPendingPrompts(IUserMessage message, SocketReaction reaction, DiscordRestClient client);
         Task<Prompt> CreatePollPrompt(ulong userId);
         Task Add(Prompt prompt);
+        Task Update(Prompt prompt);
     }
 }

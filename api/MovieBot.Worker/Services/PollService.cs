@@ -12,17 +12,21 @@ using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
 using MovieBot.Worker.Constants;
 using MovieBot.Worker.DataAccess;
+using MovieBot.Worker.Interfaces;
 using MovieBot.Worker.Models;
+using MovieBot.Worker.Services.Common;
 
 namespace MovieBot.Worker.Services
 {
     public class PollService : IPollService
     {
         private readonly IPollDataAccess _dataAccess;
+        private readonly IDefaultModelWriteActions<Poll> _writeActions;
         
-        public PollService(IPollDataAccess dataAccess)
+        public PollService(IPollDataAccess dataAccess, IDefaultModelWriteActions<Poll> writeActions)
         {
             _dataAccess = dataAccess;
+            _writeActions = writeActions;
         }
 
         public async Task HandleExpired(DiscordSocketClient client)
@@ -39,7 +43,6 @@ namespace MovieBot.Worker.Services
             var poll = await _dataAccess.Get(pollId);
             await ClosePoll(poll, client);
         }
-
 
         private async Task ClosePoll(Poll poll, DiscordRestClient client)
         {
@@ -128,17 +131,13 @@ namespace MovieBot.Worker.Services
         
         public async Task Add(Poll poll)
         {
-            var date = DateTimeOffset.UtcNow;
-            poll.CreatedAt = date;
-            poll.UpdatedAt = date;
+            _writeActions.SetAddProperties(poll);
             await _dataAccess.Add(poll);
         }
         
         public async Task Update(Poll poll)
         {
-            var date = DateTimeOffset.UtcNow;
-            poll.CreatedAt = date;
-            poll.UpdatedAt = date;
+            _writeActions.SetUpdateProperties(poll);
             await _dataAccess.Update(poll);
         }
 
@@ -187,8 +186,10 @@ namespace MovieBot.Worker.Services
             await sentMessage.AddReactionsAsync(reactions.ToArray());
 
             poll.PollMessageId = sentMessage.Id;
-            await _dataAccess.Update(poll);            
+            await Update(poll);            
             await channel.DeleteMessageAsync(poll.ConfigMessageId);
         }
     }
+
+
 }

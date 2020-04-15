@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Bson.Serialization.Conventions;
 using MovieBot.Worker.DataAccess;
 using MovieBot.Worker.Services;
+using MovieBot.Worker.Services.Common;
 using NLog.Web;
 
 namespace MovieBot.Worker
@@ -61,6 +62,11 @@ namespace MovieBot.Worker
                     services.AddTransient<IPromptDataAccess, PromptDataAccess>();
                     services.AddTransient<IPromptService, PromptService>();
                     services.AddTransient(typeof(IGenericDataAccess<>), typeof(GenericDataAccess<>));
+                    services.AddTransient(typeof(IDefaultModelWriteActions<>), typeof(DefaultModelWriteActions<>));
+                    services.AddTransient(typeof(ITrackedWriteActions<>), typeof(TrackedWriteActions<>));
+                    services.AddTransient(typeof(ICanDeleteWriteActions<>), typeof(CanDeleteWriteActions<>));
+                    services.AddTransient<IRouletteService, RouletteService>();
+                    services.AddTransient<IRouletteGameDataAccess, RouletteGameDataAccess>();
                 });
     }
 }
