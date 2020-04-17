@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -179,12 +180,20 @@ namespace MovieBot.Worker.Services
                 
                 if (cmdValue.ToLower().Trim() == "spin")
                 {
-                    var winner = await _rouletteService.Spin();
-                    var builder = new StringBuilder();
-                    builder.AppendLine("**Roulette Winner**");
-                    builder.AppendLine();
-                    builder.AppendLine($"***{winner}***");
-                    await message.Channel.SendMessageAsync(builder.ToString());
+                    var imgPath = Path.Join(AppDomain.CurrentDomain.BaseDirectory, "Static Assets/roulette.gif");
+                    var res = await message.Channel.SendFileAsync(imgPath, "*Spinning...*");
+
+                    Task.Run(async () =>
+                    {
+                        Thread.Sleep(15000);
+                        await message.Channel.DeleteMessageAsync(res.Id);
+                        var winner = await _rouletteService.Spin();
+                        var builder = new StringBuilder();
+                        builder.AppendLine("**Roulette Winner**");
+                        builder.AppendLine();
+                        builder.AppendLine($"***{winner}***");
+                        await message.Channel.SendMessageAsync(builder.ToString());
+                    });
                     return;
                 }
                 
@@ -379,6 +388,8 @@ namespace MovieBot.Worker.Services
             builder.AppendLine();
             builder.AppendLine("Command List:");
             builder.AppendLine();
+            builder.AppendLine("`!movie-bot roulette`");
+            builder.AppendLine("`!movie-bot poll`");
             builder.AppendLine("`!movie-bot ping`");
             builder.AppendLine("`!movie-bot echo`");
             builder.AppendLine("`!movie-bot popcorn`");
