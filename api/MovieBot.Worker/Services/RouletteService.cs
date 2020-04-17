@@ -54,6 +54,11 @@ namespace MovieBot.Worker.Services
                 throw new RouletteException("No titles have been added.");
             }
             
+            if (game.Titles.Count() < 2)
+            {
+                throw new RouletteException("At least 2 titles must be added.");
+            }
+            
             var rand = new Random();
             var i = rand.Next(0, game.Titles.Count() - 1);
             var titles = game.Titles.ToList();
