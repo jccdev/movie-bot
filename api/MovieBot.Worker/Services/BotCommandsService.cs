@@ -167,7 +167,13 @@ namespace MovieBot.Worker.Services
                     {
                         builder.AppendLine("`No titles have been added.`");
                     }
-                    await message.Channel.SendMessageAsync(builder.ToString());
+
+                    var output = builder.ToString();
+                    if (output.Length > 2000)
+                    {
+                        output = output.Substring(0,2000);
+                    }
+                    await message.Channel.SendMessageAsync(output);
                     return;
                 }
                 

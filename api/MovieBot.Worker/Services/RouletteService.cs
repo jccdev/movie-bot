@@ -31,11 +31,6 @@ namespace MovieBot.Worker.Services
             }
             else
             {
-                if (game.Titles.Count() >= 20)
-                {
-                    throw new RouletteException("Cannot add title, max limit of 20 has been reached.");
-                }
-
                 if (game.Titles.Any(t => string.Compare(t, title, StringComparison.CurrentCultureIgnoreCase) == 0))
                 {
                     throw new RouletteException($"Cannot add title, '{title}' is a duplicate.");
