@@ -4,6 +4,7 @@ namespace MovieBot.Worker.Constants
     {
         public const ulong BotUserId = 692580370872533004;
         public const ulong BotTestChannel = 692578131646611466;
+        public const ulong BotDevChannel = 698991098390904842;
         public const ulong GeneralChannel = 691009601402962126;
     }
 }
