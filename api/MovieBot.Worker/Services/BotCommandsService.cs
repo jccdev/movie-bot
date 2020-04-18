@@ -145,11 +145,6 @@ namespace MovieBot.Worker.Services
                     builder.AppendLine("`!movie-bot roulette remove title`");
                     builder.AppendLine("`!movie-bot r remove title`");
                     builder.AppendLine();
-                    builder.AppendLine("__*Clear All:*__");
-                    builder.AppendLine("`!movie-bot roulette clear`");
-                    builder.AppendLine("`!movie-bot r clear`");
-                    builder.AppendLine();
-                    builder.AppendLine("**Limit of 20 selections.*");
                     await message.Channel.SendMessageAsync(builder.ToString());
                 }
 
@@ -211,15 +206,6 @@ namespace MovieBot.Worker.Services
                             await HandleRouletteException(ex);
                         }
                     });
-                    return;
-                }
-                
-                if (cmdValue.ToLower().Trim() == "clear")
-                {
-                    await _rouletteService.Clear();
-                    var builder = new StringBuilder();
-                    builder.AppendLine("*Roulette Cleared*");
-                    await message.Channel.SendMessageAsync(builder.ToString());
                     return;
                 }
                 
