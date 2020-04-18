@@ -20,6 +20,29 @@ namespace MovieBot.Worker.Services
             _writeActions = writeActions;
         }
 
+        public async Task StartSpin()
+        {            
+            var game = await _dataAccess.GetCurrentGame();
+
+            if (game?.Titles == null || !game.Titles.Any())
+            {
+                throw new RouletteException("No titles have been added.");
+            }
+            
+            if (game.Titles.Count() < 2)
+            {
+                throw new RouletteException("At least 2 titles must be added.");
+            }
+
+            if (game.InProgress)
+            {
+                throw new RouletteException("Spin in progress.");                
+            }
+
+            game.InProgress = true;
+            await Update(game);
+        }
+
         public async Task AddTitle(string title)
         {
             var game = await _dataAccess.GetCurrentGame();
@@ -40,18 +63,13 @@ namespace MovieBot.Worker.Services
             }
         }
         
-        public async Task<string> Spin()
+        public async Task<string> CompleteSpin()
         {
             var game = await _dataAccess.GetCurrentGame();
 
-            if (game?.Titles == null || !game.Titles.Any())
+            if (game?.Titles == null || !game.Titles.Any() || game?.InProgress == false)
             {
-                throw new RouletteException("No titles have been added.");
-            }
-            
-            if (game.Titles.Count() < 2)
-            {
-                throw new RouletteException("At least 2 titles must be added.");
+                throw new RouletteException("No valid game found.");
             }
             
             var rand = new Random();
@@ -60,6 +78,7 @@ namespace MovieBot.Worker.Services
             var res = titles.ElementAt(i);
             titles.RemoveAt(i);
             game.Winner = res;
+            game.InProgress = false;
             var newGame = new RouletteGame { Titles = titles };
 
             await Update(game);
