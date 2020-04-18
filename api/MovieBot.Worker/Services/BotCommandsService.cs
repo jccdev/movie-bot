@@ -110,7 +110,15 @@ namespace MovieBot.Worker.Services
 
         private async Task Roulette(IMessage message, Match regMatch)
         {
-            
+            async Task HandleRouletteException(RouletteException ex)
+            {
+                var builder = new StringBuilder();
+                builder.AppendLine("**Roulette Error**");
+                builder.AppendLine();
+                builder.AppendLine($"`{ex.Message}`");
+                await message.Channel.SendMessageAsync(builder.ToString());
+            }
+
             try
             {
                 var cmdGroup = regMatch.Groups[1];
@@ -180,19 +188,28 @@ namespace MovieBot.Worker.Services
                 
                 if (cmdValue.ToLower().Trim() == "spin")
                 {
+                    await _rouletteService.StartSpin();
                     var imgPath = Path.Join(AppDomain.CurrentDomain.BaseDirectory, "Static Assets/roulette.gif");
                     var res = await message.Channel.SendFileAsync(imgPath, "*Spinning...*");
 
                     Task.Run(async () =>
                     {
-                        Thread.Sleep(15000);
-                        await message.Channel.DeleteMessageAsync(res.Id);
-                        var winner = await _rouletteService.Spin();
-                        var builder = new StringBuilder();
-                        builder.AppendLine("**Roulette Winner**");
-                        builder.AppendLine();
-                        builder.AppendLine($"***{winner}***");
-                        await message.Channel.SendMessageAsync(builder.ToString());
+                        try
+                        {
+                            Thread.Sleep(15000);
+                            await message.Channel.DeleteMessageAsync(res.Id);
+                            var winner = await _rouletteService.CompleteSpin();
+                            var builder = new StringBuilder();
+                            builder.AppendLine("**Roulette Winner**");
+                            builder.AppendLine();
+                            builder.AppendLine($"***{winner}***");
+                            await message.Channel.SendMessageAsync(builder.ToString());
+                        }
+                        
+                        catch (RouletteException ex)
+                        {
+                            await HandleRouletteException(ex);
+                        }
                     });
                     return;
                 }
@@ -238,11 +255,7 @@ namespace MovieBot.Worker.Services
             }
             catch (RouletteException ex)
             {
-                var builder = new StringBuilder();
-                builder.AppendLine("**Roulette Error**");
-                builder.AppendLine();
-                builder.AppendLine($"`{ex.Message}`");
-                await message.Channel.SendMessageAsync(builder.ToString());
+                await HandleRouletteException(ex);
             }
         }
 
