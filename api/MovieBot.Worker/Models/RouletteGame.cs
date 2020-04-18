@@ -10,5 +10,6 @@ namespace MovieBot.Worker.Models
     {
         public IEnumerable<string> Titles { get; set; } = Enumerable.Empty<string>();
         public string Winner { get; set; }
+        public bool InProgress { get; set; } = false;
     }
 }
